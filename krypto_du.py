@@ -1,3 +1,5 @@
+import math
+
 def GenerateCipher():    
     P1 = [22, 13, 10, 18, 3, 1, 23, 20, 15, 2, 0, 21, 11, 12, 19, 16, 8, 14, 4, 5, 17, 6, 9, 7]
     P2 = [2, 1, 6, 21, 23, 13, 18, 5, 14, 4, 9, 8, 20, 19, 7, 10, 16, 17, 22, 11, 0, 12, 3, 15]
@@ -29,7 +31,7 @@ def bin2hex(a):
         val = val + b2h(a[4*i:4*i+4])
     return val
 
-def dec2bin(d, cnt=6):
+def dec2bin(d, cnt=6):    
     res = list()
     for _ in range(cnt):
         res.append(d%2)
@@ -44,8 +46,8 @@ def bin2dec(b):
     for i in b:
         res = res + e*i
         e = e*2
+    b.reverse() #otocime spat
     return res
-
 
 
 def GenerateKeys():
@@ -57,8 +59,8 @@ def xor(a,b):
         return -1
     return [(a[i]+b[i]) % 2 for i in range(len(a))]
 
-def sbox(S,val):        
-    return dec2bin(S[bin2dec(val)])
+def sbox(S,val):         
+    return dec2bin(S[bin2dec(val)], len(val))
 
 def subs(S,val):    
     return sbox(S, val[0:6]) + sbox(S, val[6:12]) + sbox(S, val[12:18]) + sbox(S, val[18:24])
@@ -134,25 +136,34 @@ def do_test(debug = False):
 
 def scalar(v1,v2):
     sum = 0
-    for i in range(len(v1)):
-        sum += v1[i]*v2[i]
+    l = list()
+    # print ('v1:',v1,'\nv2:',v2)
+    for i in range(len(v1)):        
+        l.append(v1[i]*v2[i])
+        sum += v1[i]*v2[i]                
         sum %= 2
-    return [sum]
-
+    # print('vo:',l)
+    return sum
 
 def computeLATCell(inputIndex, outputIndex, vectors, S):
     sum = 0
     for x in vectors:
-        sum += (-1)**(xor(scalar(x, vectors[inputIndex]), scalar(sbox(S, x), vectors[outputIndex]))[0])
+        t = (-1)**(scalar(x, vectors[inputIndex])^scalar(sbox(S, x), vectors[outputIndex]))
+        print(inputIndex, outputIndex, vectors[inputIndex], vectors[outputIndex],x, sbox(S, x),t )
+        print(vectors[outputIndex],'.', sbox(S, x), '=',scalar(sbox(S, x), vectors[outputIndex]))
+        sum += t        
     return sum
 
-def computeLinearAproximationTable(S):
-    r = range(2**6)
-    vectors = [dec2bin(i) for i in r]    
-    return [[computeLATCell(i, j, vectors, S) for i in r] for j in r]
+def computeLinearAproximationTable(S, pocetBitov = 6):    
+    r = range(len(S))
 
-s = GenerateCipher()[0]
-linearTable = computeLinearAproximationTable(s)
+    vectors = [dec2bin(i, pocetBitov) for i in r]   
+    # return [[computeLATCell(j, i, vectors, S) for i in r] for j in r]
+    return [[computeLATCell(j, i, vectors, S) for i in r] for j in r]
+
+s = [5, 9, 7, 14, 0, 3, 2, 1, 10, 4, 13, 8, 11, 12, 6, 15]
+# s = GenerateCipher()[0] 
+linearTable = computeLinearAproximationTable(s,4)
 for i in linearTable:
-    print i
+    print(i)
 
