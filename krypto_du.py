@@ -1,9 +1,16 @@
 import math
 
+def getReversedList(l):
+    c = l[:]
+    c.reverse()
+    return c
+
+
 def GenerateCipher():    
     P1 = [22, 13, 10, 18, 3, 1, 23, 20, 15, 2, 0, 21, 11, 12, 19, 16, 8, 14, 4, 5, 17, 6, 9, 7]
     P2 = [2, 1, 6, 21, 23, 13, 18, 5, 14, 4, 9, 8, 20, 19, 7, 10, 16, 17, 22, 11, 0, 12, 3, 15]
     S = [24, 19, 43, 35, 12, 29, 40, 21, 33, 58, 48, 59, 22, 60, 32, 54, 17, 6, 56, 52, 37, 44, 10, 50, 15, 49, 30, 61, 13, 18, 46, 39, 16, 31, 28, 8, 53, 7, 51, 47, 41, 38, 26, 36, 57, 27, 0, 1, 62, 2, 63, 14, 23, 20, 3, 4, 45, 5, 11, 34, 55, 42, 9, 25]
+    # S2 = [bin2dec(getReversedList(dec2bin(i,6))) for i in S]
     return [S, P1, P2]
 
 def hex2bin(hexstring):
@@ -135,35 +142,36 @@ def do_test(debug = False):
 # print(do_test(True))
 
 def scalar(v1,v2):
-    sum = 0
-    l = list()
-    # print ('v1:',v1,'\nv2:',v2)
+    sum = 0    
     for i in range(len(v1)):        
-        l.append(v1[i]*v2[i])
         sum += v1[i]*v2[i]                
         sum %= 2
-    # print('vo:',l)
     return sum
 
 def computeLATCell(inputIndex, outputIndex, vectors, S):
     sum = 0
     for x in vectors:
-        t = (-1)**(scalar(x, vectors[inputIndex])^scalar(sbox(S, x), vectors[outputIndex]))
-        print(inputIndex, outputIndex, vectors[inputIndex], vectors[outputIndex],x, sbox(S, x),t )
-        print(vectors[outputIndex],'.', sbox(S, x), '=',scalar(sbox(S, x), vectors[outputIndex]))
-        sum += t        
+        sum += (-1)**(scalar(x, vectors[inputIndex])^scalar(sbox(S, x), vectors[outputIndex]))
     return sum
 
 def computeLinearAproximationTable(S, pocetBitov = 6):    
     r = range(len(S))
-
     vectors = [dec2bin(i, pocetBitov) for i in r]   
-    # return [[computeLATCell(j, i, vectors, S) for i in r] for j in r]
     return [[computeLATCell(j, i, vectors, S) for i in r] for j in r]
 
-s = [5, 9, 7, 14, 0, 3, 2, 1, 10, 4, 13, 8, 11, 12, 6, 15]
-# s = GenerateCipher()[0] 
-linearTable = computeLinearAproximationTable(s,4)
-for i in linearTable:
-    print(i)
+# s = [5, 9, 7, 14, 0, 3, 2, 1, 10, 4, 13, 8, 11, 12, 6, 15]
+# s = [10, 5, 0, 13, 14, 11, 4, 6, 9, 2, 12, 3, 7, 1, 8, 15]
+s = GenerateCipher()[0] 
+linearTable = computeLinearAproximationTable(s,6)
+# lst = [j for i in linearTable for j in i]
+# lst.sort()
+# lst.reverse()
+# for i in linearTable:
+#     print(i)
+# print(lst)
+
+print(linearTable[56][60])
+print(56,dec2bin(56))
+print(60,dec2bin(60))
+
 
