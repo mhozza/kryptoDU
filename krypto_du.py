@@ -166,13 +166,12 @@ def computeLinearAproximationTable(S, pocetBitov = 6):
 # s = [5, 9, 7, 14, 0, 3, 2, 1, 10, 4, 13, 8, 11, 12, 6, 15]
 # s = [10, 5, 0, 13, 14, 11, 4, 6, 9, 2, 12, 3, 7, 1, 8, 15]
 s = GenerateCipher()
-# linearTable = computeLinearAproximationTable(s[0],6)
-# lst = [j for i in linearTable for j in i]
-# lst.sort()
-# lst.reverse()
-# for i in linearTable:
-#     print(i)
-# print(lst)
+linearTable = computeLinearAproximationTable(s[0],6)
+
+for i in range(len(linearTable)):
+    for j in range(len(linearTable[i])):
+        if linearTable[i][j]==32 or linearTable[i][j]==24:
+            print(i,j,dec2bin(i), dec2bin(j), linearTable[i][j])
 
 # print(linearTable[56][60])
 # print(56,dec2bin(56))
@@ -185,7 +184,7 @@ class CipherVisualizer:
         self.bits = bits
         self.structure = structure
         self.bitTable = [[0 for b in range(self.bits)] for l in range(self.levels)]
-        self.updateLevel(0)
+        # self.updateLevel(0)
 
     def setBit(self, level, bits, value=1):
         for bit in bits:
@@ -297,6 +296,11 @@ class CipherVisualizer:
 
             if command=='v' or command=='view':
                 self.visualize()
+
+            if command=='r' or command=='reset':
+                self.__init__(self.structure, self.bits)
+
+
 
 
 cv = CipherVisualizer(s)
