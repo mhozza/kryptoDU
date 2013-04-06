@@ -7,7 +7,7 @@ def getReversedList(l):
     return c
 
 
-def GenerateCipher():    
+def GenerateCipher():
     P1 = [22, 13, 10, 18, 3, 1, 23, 20, 15, 2, 0, 21, 11, 12, 19, 16, 8, 14, 4, 5, 17, 6, 9, 7]
     P2 = [2, 1, 6, 21, 23, 13, 18, 5, 14, 4, 9, 8, 20, 19, 7, 10, 16, 17, 22, 11, 0, 12, 3, 15]
     S = [24, 19, 43, 35, 12, 29, 40, 21, 33, 58, 48, 59, 22, 60, 32, 54, 17, 6, 56, 52, 37, 44, 10, 50, 15, 49, 30, 61, 13, 18, 46, 39, 16, 31, 28, 8, 53, 7, 51, 47, 41, 38, 26, 36, 57, 27, 0, 1, 62, 2, 63, 14, 23, 20, 3, 4, 45, 5, 11, 34, 55, 42, 9, 25]
@@ -29,7 +29,7 @@ def b2h(a):
     if a[0]==1: num += 8
     if num<10: return chr(ord('0') + num)
     return chr(ord('a') + (num-10))
-    
+
 def bin2hex(a):
     if len(a) % 4 !=0:
         print('bin2hex Error: len(a)=', len(a))
@@ -39,7 +39,7 @@ def bin2hex(a):
         val = val + b2h(a[4*i:4*i+4])
     return val
 
-def dec2bin(d, cnt=6):    
+def dec2bin(d, cnt=6):
     res = list()
     for _ in range(cnt):
         res.append(d%2)
@@ -47,7 +47,7 @@ def dec2bin(d, cnt=6):
     res.reverse()
     return res
 
-def bin2dec(b):    
+def bin2dec(b):
     b.reverse()
     res = 0
     e = 1
@@ -67,22 +67,25 @@ def xor(a,b):
         return -1
     return [(a[i]+b[i]) % 2 for i in range(len(a))]
 
-def sbox(S,val):         
+def sbox(S,val,deactivateIfZero=False):
+    if deactivateIfZero and sum(val)==0: return val
     return dec2bin(S[bin2dec(val)], len(val))
 
-def subs(S,val):    
-    return sbox(S, val[0:6]) + sbox(S, val[6:12]) + sbox(S, val[12:18]) + sbox(S, val[18:24])
-    
+def subs(S,val,deactivateIfZero=False):
+    return sbox(S, val[0:6],deactivateIfZero) + sbox(S, val[6:12],deactivateIfZero) + sbox(S, val[12:18],deactivateIfZero) + sbox(S, val[18:24],deactivateIfZero)
+
 def perm(P,val):
     if len(val) != len(P):
         print('Error in perm: len(P)=', len(P), ', len(val)=', len(val))
         return -1
+
+    # print([(i, P[i], val[P[i]]) for i in range(len(val))])
     return [val[P[i]] for i in range(len(val))]
-    
+
 def Encrypt(structure, keys, plaintext):
     S = structure[0]
     P1 = structure[1]
-    P2 = structure[2] 
+    P2 = structure[2]
     # Round 1
     val = xor(plaintext, keys[0])
     val = subs(S, val)
@@ -93,7 +96,7 @@ def Encrypt(structure, keys, plaintext):
     val = perm(P2, val)
     # Round 3
     val = xor(val, keys[2])
-    val = subs(S, val)    
+    val = subs(S, val)
     val = xor(val, keys[3])
     return val
 
@@ -102,7 +105,7 @@ def inv(a):
     for i in range(len(a)):
         val[a[i]] = i
     return val
-    
+
 def Decrypt(structure, keys, ciphertext):
     Sinv = inv(structure[0])
     P1inv = inv(structure[1])
@@ -126,11 +129,11 @@ def Decrypt(structure, keys, ciphertext):
 
 def do_test(debug = False):
     struct = GenerateCipher()
-    keys = GenerateKeys()    
+    keys = GenerateKeys()
     OT = hex2bin("bd4583")
     if debug: print('OT:', OT)
-    ST = Encrypt(struct, keys, OT)            
-    if debug: 
+    ST = Encrypt(struct, keys, OT)
+    if debug:
         print('ST:', ST)
         print('TT:', hex2bin('88683c'))
         print('STstr:', bin2hex(ST))
@@ -143,9 +146,9 @@ def do_test(debug = False):
 # print(do_test(True))
 
 def scalar(v1,v2):
-    sum = 0    
-    for i in range(len(v1)):        
-        sum += v1[i]*v2[i]                
+    sum = 0
+    for i in range(len(v1)):
+        sum += v1[i]*v2[i]
         sum %= 2
     return sum
 
@@ -155,9 +158,9 @@ def computeLATCell(inputIndex, outputIndex, vectors, S):
         sum += (-1)**(scalar(x, vectors[inputIndex])^scalar(sbox(S, x), vectors[outputIndex]))
     return sum
 
-def computeLinearAproximationTable(S, pocetBitov = 6):    
+def computeLinearAproximationTable(S, pocetBitov = 6):
     r = range(len(S))
-    vectors = [dec2bin(i, pocetBitov) for i in r]   
+    vectors = [dec2bin(i, pocetBitov) for i in r]
     return [[computeLATCell(j, i, vectors, S) for i in r] for j in r]
 
 # s = [5, 9, 7, 14, 0, 3, 2, 1, 10, 4, 13, 8, 11, 12, 6, 15]
@@ -180,34 +183,36 @@ class CipherVisualizer:
     def __init__(self, structure, bits = 24):
         self.levels = 4
         self.bits = bits
-        self.structure = structure        
+        self.structure = structure
         self.bitTable = [[0 for b in range(self.bits)] for l in range(self.levels)]
         self.updateLevel(0)
 
-    def setBit(self, level, bit, value=1):
-        self.bitTable[level][bit] = value
+    def setBit(self, level, bits, value=1):
+        for bit in bits:
+            self.bitTable[level][int(bit)] = value
         self.updateLevel(level)
+        self.updateLevel(0)
 
     def encryptFromLevel(self, level):
         S  = self.structure[0]
         P1 = self.structure[1]
-        P2 = self.structure[2] 
-        
-        val = self.bitTable[level][:] # copy of row            
+        P2 = self.structure[2]
+
+        val = self.bitTable[level][:] # copy of row
 
         if level==0:
             # Round 1
-            val = subs(S, val)
+            val = subs(S, val, True)
             val = perm(P1, val)
             self.bitTable[1]=val[:] # setup first level
         if level<=1:
             # Round 2
-            val = subs(S, val)
+            val = subs(S, val, True)
             val = perm(P2, val)
             self.bitTable[2]=val[:] # setup second level
         if level<=2:
             # Round 3
-            val = subs(S, val)            
+            val = subs(S, val, True)
             self.bitTable[3]=val[:] # setup third level
 
     def decryptFromLevel(self, level):
@@ -218,70 +223,80 @@ class CipherVisualizer:
         val = self.bitTable[level][:] # copy of row
 
         if level==3:
-            # Round 1            
-            val = subs(Sinv, val)        
+            # Round 1
+            val = subs(Sinv, val, True)
             self.bitTable[2] = val[:]
         if level>=2:
             # Round 2
             val = perm(P2inv, val)
-            val = subs(Sinv, val)
+            val = subs(Sinv, val, True)
             self.bitTable[1] = val[:]
         if level>=1:
             # Round 3
             val = perm(P1inv, val)
-            val = subs(Sinv, val)
+            val = subs(Sinv, val, True)
             self.bitTable[0] = val[:]
 
     def updateLevel(self, level):
         self.encryptFromLevel(level)
         self.decryptFromLevel(level)
 
+    def _printBits(self, i, bits, colors=True):
+        color = ('\033[0;37m', '\033[1;31m')
+        print(i,':',*[color[b]+repr(b).rjust(2)+color[0] for b in bits])
+
     def visualize(self):
-        print('l',':', *[repr(i).rjust(2) for i in range(self.bits)])        
-        for i,l in enumerate(self.bitTable):            
-            t = [repr(b).rjust(2) for b in l]
-            print(i,':',*t)
+        print('l',':', *[repr(i).rjust(2) for i in range(self.bits)])
+        for i,l in enumerate(self.bitTable):
+            self._printBits(i,l)
             if i<self.levels-1:
                 print(' ',' ',' ____       ____  '*4)
                 print(' ',' ','|____ S-box ____| '*4)
-                sl = subs(self.structure[0], l)
-                t2 = [repr(b).rjust(2) for b in sl]
-                print(i,':',*t2)
+            if i<self.levels-2:
+                sl = subs(self.structure[0], l, True)
+                self._printBits(i,sl)
                 print(' ',' ',' _____      ____  '*4)
                 print(' ',' ','|_____ Perm ____| '*4)
-        print('l',':', *[repr(i).rjust(2) for i in range(self.bits)])        
+        print('l',':', *[repr(i).rjust(2) for i in range(self.bits)])
 
     def startInteractivrMode(self):
         level = 0
 
         while True:
-            line = sys.stdin.readline().split()            
+            line = sys.stdin.readline().split()
             command, value = ('exit', None)
             if len(line)>0:
                 command = line[0]
-            if len(line)>1:
+            if len(line)==2:
                 value = line[1]
+            if len(line)>=3:
+                value = line[1:]
 
             if not command or command == 'exit':
                 print('Exitting interactive mode')
-                break            
-                
+                break
+
             if command=='l' or command=='level':
                 if value != None and 0 <= int(value) < self.levels:
                     level = int(value)
                 print('Current level:', level)
 
             if command=='1' or command=='set':
-                if value != None and 0 <= int(value) < self.bits:
-                    self.setBit(level, int(value), 1)
-                    print('Set bit ', value, ' in level ', level, ' to 1')
-                    self.visualize()
+                if type(value) is not list:
+                    value = [value]
+                self.setBit(level, value, 1)
+                print('Set bits ', value, ' in level ', level, ' to 1')
+                self.visualize()
 
             if command=='0' or command=='unset':
-                if value != None and 0 <= int(value) < self.bits:
-                    self.setBit(level, int(value), 0)
-                    print('Set bit ', value, ' in level ', level, ' to 0')
-                    self.visualize()
+                if type(value) is not list:
+                    value = [value]
+                self.setBit(level, value, 0)
+                print('Set bits ', value, ' in level ', level, ' to 0')
+                self.visualize()
+
+            if command=='v' or command=='view':
+                self.visualize()
 
 
 cv = CipherVisualizer(s)
