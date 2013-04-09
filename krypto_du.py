@@ -153,7 +153,6 @@ def scalar(v1,v2):
 def computeLATCell(inputIndex, outputIndex, vectors, S):
     sum = 0
     for x in vectors:
-        # sum += (-1)**(scalar(x, vectors[inputIndex])^scalar(sbox(S, x), vectors[outputIndex]))
         if(scalar(x, vectors[inputIndex]) == scalar(sbox(S, x), vectors[outputIndex])):
             sum += 1
     return sum-32
@@ -169,7 +168,6 @@ class CipherVisualizer:
         self.sboxcnt = 4        
         self.bits = bits
         self.structure = structure
-        # self.bitTable = [[0 for b in range(self.bits)] for l in range(self.levels)]
         self.sboxes = [[[0 for i in range(self.bits)],[0 for i in range(self.bits)]] for k in range(self.levels-1)]
 
     def subs(self, level, out):
@@ -179,51 +177,32 @@ class CipherVisualizer:
         P1 = self.structure[1]
         P2 = self.structure[2]
 
-        # val = self.bitTable[level][:] # copy of row
-        # val = self.sboxes[level][1][:]
-
         if level==0:
             # Round 1
             val = self.subs(0,1)
             val = perm(P1, val)
-            # self.bitTable[1]=val[:] # setup first level
             self.sboxes[1][0] = val[:]
         if level<=1:
             # Round 2
             val = self.subs(1,1)
             val = perm(P2, val)
-            # self.bitTable[2]=val[:] # setup second level
-            self.sboxes[2][0] = val[:]
-        if level<=2:
-            # Round 3
-            val = self.subs(2,1)
-            # self.bitTable[3]=val[:] # setup third level
-            self.sboxes[2][1] = val[:]
+            self.sboxes[2][0] = val[:]        
 
     def decryptFromLevel(self, level):        
         P1inv = inv(self.structure[1])
         P2inv = inv(self.structure[2])
 
-        # val = self.bitTable[level][:] # copy of row
         val = self.sboxes[level][0][:]
 
-        # if level==3:
-        #     # Round 1
-        #     val = self.subs(2,0)
-        #     # self.bitTable[2] = val[:]
-        #     self.sboxes[2][1] = val[:]
-        if level>=2:
+        if level==2:
             # Round 2
             val = perm(P2inv, val)
             self.sboxes[1][1] = val[:]
             val = self.subs(1,0)
-            # self.bitTable[1] = val[:]
         if level>=1:
             # Round 3
             val = perm(P1inv, val)
             self.sboxes[0][1] = val[:]
-            # val = self.subs(0,0)
-            # self.bitTable[0] = val[:]
 
     def updateLevel(self, level):
         self.encryptFromLevel(level)
@@ -236,8 +215,6 @@ class CipherVisualizer:
         
         self.sboxes[level][out][sbox*6:(sbox+1)*6] = bits[:]
 
-        # if not out:            
-        #     self.bitTable[level][sbox*6:(sbox+1)*6] = bits
         self.updateLevel(level)
     
     def _printBits(self, i, j, bits, colors=True):
@@ -288,12 +265,10 @@ class CipherVisualizer:
 
             if command=='i' or command=='in':
                 self.setSBox(0,level, sbox, value)
-                # print('Set bits ', value, ' in level ', level, ' to 1')
                 self.visualize()
 
             if command=='o' or command=='out':
                 self.setSBox(1,level, sbox, value)
-                # print('Set bits ', value, ' in level ', level, ' to 1')
                 self.visualize()
 
             if command=='v' or command=='view':
@@ -331,7 +306,6 @@ f.close()
 f = open('biasTable.dat','rb')
 biasTable = pickle.load(f)
 # = [[i/(2*linearTable[0][0]) for i in j] for j in linearTable]
-
 f.close()
 
 for i in range(len(linearTable)):
