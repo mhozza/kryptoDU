@@ -1,3 +1,4 @@
+#!/usr/bin/pypy
 import math
 import sys
 import pickle
@@ -217,28 +218,40 @@ class CipherVisualizer:
 
         self.updateLevel(level)
 
+    def _list2String(self, lst):
+        s = ''
+        for i in lst:
+            s+=str(i)+' '
+        return s
+
     def _printBits(self, i, j, bits, colors=True):
         color = ('\033[0;37m', '\033[1;31m')
-        print(str(i)+'.'+str(j)+':',*[color[b]+repr(b).rjust(2)+color[0] for b in bits])
+        ls = self._list2String([color[b]+repr(b).rjust(2)+color[0] for b in bits])
+        print(str(i)+'.'+str(j)+':'+ls)        
 
     def visualize(self):
-        print('l  :', *[repr(i).rjust(2) for i in range(self.bits)])
-        # for i,l in enumerate(self.bitTable):
+        ls = self._list2String([repr(i).rjust(2) for i in range(self.bits)])
+        print('l  :', ls)
+        
         for i,l in enumerate(self.sboxes):
             self._printBits(i,0,l[0][:])
             if i<self.levels-1:
                 print('    ',' _       _     _  '*4)
                 s = ""
+                sboxBias = 2**(self.sboxcnt-1)
                 for j in range(4):
                     vstup = bin2dec(self.sboxes[i][0][j*6:(1+j)*6])
                     vystup = bin2dec(self.sboxes[i][1][j*6:(1+j)*6])
+                    sboxBias *=biasTable[vstup][vystup]
                     s+='|_ S-box:_{0:.3f}_| '.format(biasTable[vstup][vystup])
+                s+='  Bias: %(bias) .4f' % {'bias':sboxBias}
                 print('    ',s)
                 self._printBits(i,1,l[1][:])
             if i<self.levels-2:
                 print('    ',' _______________________________      ________________________________  ')
                 print('    ','|_______________________________ Perm ________________________________| ')
-        print('l  :', *[repr(i).rjust(2) for i in range(self.bits)])
+
+        print('l  :', ls)
 
     def getLinearEquation(self):
         vstup = [i for i,j in enumerate(self.sboxes[0][0]) if j]
@@ -256,7 +269,7 @@ class CipherVisualizer:
         if type(value) is not str:
             value = 'sbox.dat'
         f = open(value,'wb')
-        pickle.dump(self.sboxes,f)
+        pickle.dump(self.sboxes,f,2)
         f.close()
 
     def startInteractivrMode(self):
@@ -368,55 +381,77 @@ def generateOneKey(index, lst, *params):
 def generateAllKeys(activeSboxes):
     cnt = sum(activeSboxes)
     if cnt==4:
-        keys = [[generateOneKey(0,activeSboxes,i,j,k,l) + generateOneKey(1,activeSboxes,i,j,k,l) + generateOneKey(2,activeSboxes,i,j,k,l) + generateOneKey(3,activeSboxes,i,j,k,l)] for i in range(2**6) for j in range(2**6) for k in range(2**6) for l in range(2**6)]
+        keys = [generateOneKey(0,activeSboxes,i,j,k,l) + generateOneKey(1,activeSboxes,i,j,k,l) + generateOneKey(2,activeSboxes,i,j,k,l) + generateOneKey(3,activeSboxes,i,j,k,l) for i in range(2**6) for j in range(2**6) for k in range(2**6) for l in range(2**6)]
     if cnt==3:
-        keys = [[generateOneKey(0,activeSboxes,i,j,k) + generateOneKey(1,activeSboxes,i,j,k) + generateOneKey(2,activeSboxes,i,j,k) + generateOneKey(3,activeSboxes,i,j,k)] for i in range(2**6) for j in range(2**6) for k in range(2**6)]
+        keys = [generateOneKey(0,activeSboxes,i,j,k) + generateOneKey(1,activeSboxes,i,j,k) + generateOneKey(2,activeSboxes,i,j,k) + generateOneKey(3,activeSboxes,i,j,k) for i in range(2**6) for j in range(2**6) for k in range(2**6)]
     if cnt==2:
-        keys = [[generateOneKey(0,activeSboxes,i,j) + generateOneKey(1,activeSboxes,i,j) + generateOneKey(2,activeSboxes,i,j) + generateOneKey(3,activeSboxes,i,j)] for i in range(2**6) for j in range(2**6)]
+        keys = [generateOneKey(0,activeSboxes,i,j) + generateOneKey(1,activeSboxes,i,j) + generateOneKey(2,activeSboxes,i,j) + generateOneKey(3,activeSboxes,i,j) for i in range(2**6) for j in range(2**6)]
     if cnt==1:
-        keys = [[generateKeys(0,activeSboxes,i) + generateKeys(1,activeSboxes,i) + generateKeys(2,activeSboxes,i) + generateKeys(3,activeSboxes,i)] for i in range(2**6)]
+        keys = [generateKeys(0,activeSboxes,i) + generateKeys(1,activeSboxes,i) + generateKeys(2,activeSboxes,i) + generateKeys(3,activeSboxes,i) for i in range(2**6)]
     return keys
 
+
+
+# print()
 
 # s = [5, 9, 7, 14, 0, 3, 2, 1, 10, 4, 13, 8, 11, 12, 6, 15]
 # s = [10, 5, 0, 13, 14, 11, 4, 6, 9, 2, 12, 3, 7, 1, 8, 15]
 s = GenerateCipher()
 f = open('lineartable.dat','rb')
 linearTable = pickle.load(f)
+f.close()
+f = open('lineartable.dat','wb')
+pickle.dump(linearTable,f,2)
 # computeLinearAproximationTable(s[0],6)
 f.close()
 f = open('biasTable.dat','rb')
 biasTable = pickle.load(f)
+f.close()
+f = open('biasTable.dat','wb')
+pickle.dump(biasTable,f,2)
 # = [[i/(2*linearTable[0][0]) for i in j] for j in linearTable]
 f.close()
 
-for i in range(len(linearTable)):
-    for j in range(len(linearTable[i])):
-        if abs(linearTable[i][j])>=12:
-            print(i,j,dec2bin(i), dec2bin(j), linearTable[i][j], biasTable[i][j])
+# for i in range(len(linearTable)):
+#     for j in range(len(linearTable[i])):
+#         if abs(linearTable[i][j])>=12:
+#             print(i,j,dec2bin(i), dec2bin(j), linearTable[i][j], biasTable[i][j])
 
 cv = CipherVisualizer(s)
 cv.load()
 cv.visualize()
 cv.startInteractivrMode()
 linearEquation = cv.getLinearEquation()
-keys = generateAllKeys(cv.getActiveSboxes())
-keyDict = [0 for i in range(2**12)]
 
-# data = loadData()
-# for i,k in enumerate(keys):
-#     for d in data:
-#         if xorbitsLE(d[0],partialDecrypt(s,k,d[0]),linearEquation):
-#             keyDict[i]+=1
-#     keyDict[i]/=len(data)
+print('Generating keys...')
+activeSboxes = cv.getActiveSboxes()
+keys = generateAllKeys(activeSboxes)
+print('Generated {} keys'.format(len(keys)))
+# print('Sample key:',keys[0:5])
+keyDict = [0.0 for i in range(2**(6*sum(activeSboxes)))]
 
-# f = open('keys.dat','rb')
-# pickle.dump(keyDict,f)
+print('Loading data...')
+data = loadData()
+print('Decrypting...')
+for i,k in enumerate(keys):
+    for d in data:
+        if xorbitsLE(d[0],partialDecrypt(s,k,d[0]),linearEquation):
+            keyDict[i]+=1
+    keyDict[i]/=len(data)
+    if  i % 20==0:
+        print('%(index)d of %(count)d = %(percent).3f%%' % {'index':i, 'count':len(keys), 'percent':(i*100.0)/len(keys)})
+
+print('Saving keys...')
+f = open('keys.dat','wb')
+pickle.dump(keyDict,f,2)
 # keyDict = pickle.load(f)
-# f.close()
+f.close()
 
+print('Done.')
 
-# keyDictSort = [(abs(k-0.5), i) for i,k in enumerate(keyDict)]
-# keyDictSort.sort(reverse=True)
+keyDictSort = [(abs(k-0.5), i) for i,k in enumerate(keyDict)]
+keyDictSort.sort(reverse=True)
 
-# print(keyDictSort[0:20])
+for k,i in keyDictSort[0:20]:
+    print('{0:.5f}'.format(k), keys[i], i)
+    
