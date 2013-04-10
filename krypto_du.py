@@ -165,7 +165,7 @@ def computeLinearAproximationTable(S, pocetBitov = 6):
 class CipherVisualizer:
     def __init__(self, structure, bits = 24):
         self.levels = 4
-        self.sboxcnt = 4        
+        self.sboxcnt = 4
         self.bits = bits
         self.structure = structure
         self.sboxes = [[[0 for i in range(self.bits)],[0 for i in range(self.bits)]] for k in range(self.levels-1)]
@@ -173,7 +173,7 @@ class CipherVisualizer:
     def subs(self, level, out):
         return self.sboxes[level][out]
 
-    def encryptFromLevel(self, level):        
+    def encryptFromLevel(self, level):
         P1 = self.structure[1]
         P2 = self.structure[2]
 
@@ -186,9 +186,9 @@ class CipherVisualizer:
             # Round 2
             val = self.subs(1,1)
             val = perm(P2, val)
-            self.sboxes[2][0] = val[:]        
+            self.sboxes[2][0] = val[:]
 
-    def decryptFromLevel(self, level):        
+    def decryptFromLevel(self, level):
         P1inv = inv(self.structure[1])
         P2inv = inv(self.structure[2])
 
@@ -210,13 +210,13 @@ class CipherVisualizer:
 
     def setSBox(self, out, level, sbox, bits):
         if type(bits) is not list or len(bits)!=6:
-            return         
+            return
         bits = [int(b) for b in bits]
-        
+
         self.sboxes[level][out][sbox*6:(sbox+1)*6] = bits[:]
 
         self.updateLevel(level)
-    
+
     def _printBits(self, i, j, bits, colors=True):
         color = ('\033[0;37m', '\033[1;31m')
         print(str(i)+'.'+str(j)+':',*[color[b]+repr(b).rjust(2)+color[0] for b in bits])
@@ -224,10 +224,10 @@ class CipherVisualizer:
     def visualize(self):
         print('l  :', *[repr(i).rjust(2) for i in range(self.bits)])
         # for i,l in enumerate(self.bitTable):
-        for i,l in enumerate(self.sboxes):            
+        for i,l in enumerate(self.sboxes):
             self._printBits(i,0,l[0][:])
             if i<self.levels-1:
-                print('    ',' _       _     _  '*4)                
+                print('    ',' _       _     _  '*4)
                 s = ""
                 for j in range(4):
                     vstup = bin2dec(self.sboxes[i][0][j*6:(1+j)*6])
@@ -235,7 +235,7 @@ class CipherVisualizer:
                     s+='|_ S-box:_{0:.3f}_| '.format(biasTable[vstup][vystup])
                 print('    ',s)
                 self._printBits(i,1,l[1][:])
-            if i<self.levels-2:                
+            if i<self.levels-2:
                 print('    ',' _______________________________      ________________________________  ')
                 print('    ','|_______________________________ Perm ________________________________| ')
         print('l  :', *[repr(i).rjust(2) for i in range(self.bits)])
@@ -251,7 +251,7 @@ class CipherVisualizer:
         f = open(value,'rb')
         self.sboxes = pickle.load(f)
         f.close()
-        
+
     def save(self, value):
         if type(value) is not str:
             value = 'sbox.dat'
@@ -285,7 +285,7 @@ class CipherVisualizer:
             if command=='s' or command=='sbox':
                 if value != None and 0 <= int(value) < 4:
                     sbox = int(value)
-                print('Current s-box:', sbox)            
+                print('Current s-box:', sbox)
 
             if command=='i' or command=='in':
                 self.setSBox(0,level, sbox, value)
@@ -307,6 +307,22 @@ class CipherVisualizer:
 
             if command=='load':
                 self.load(value)
+
+    def _isZero(self, bits):
+        for i in bits:
+            if i==1:
+                return False
+        return True
+
+
+    def getActiveSboxes(self, level = 2):
+        s = list()
+        for i in range(self.sboxcnt):
+            if self._isZero(self.sboxes[level][0][i*6:(i+1)*6]):
+                s.append(0)
+            else:
+                s.append(1)
+        return s
 
 def loadData():
     f = open('h2-data.txt')
@@ -342,6 +358,26 @@ def partialDecrypt(structure, key, ciphertext):
     val = subs(Sinv, val)
     return val
 
+def generateOneKey(index, lst, *params):
+    c = sum(lst[0:index+1])-1
+    if lst[index]:
+        return dec2bin(params[c])
+    return [0]*6
+
+
+def generateAllKeys(activeSboxes):
+    cnt = sum(activeSboxes)
+    if cnt==4:
+        keys = [[generateOneKey(0,activeSboxes,i,j,k,l) + generateOneKey(1,activeSboxes,i,j,k,l) + generateOneKey(2,activeSboxes,i,j,k,l) + generateOneKey(3,activeSboxes,i,j,k,l)] for i in range(2**6) for j in range(2**6) for k in range(2**6) for l in range(2**6)]
+    if cnt==3:
+        keys = [[generateOneKey(0,activeSboxes,i,j,k) + generateOneKey(1,activeSboxes,i,j,k) + generateOneKey(2,activeSboxes,i,j,k) + generateOneKey(3,activeSboxes,i,j,k)] for i in range(2**6) for j in range(2**6) for k in range(2**6)]
+    if cnt==2:
+        keys = [[generateOneKey(0,activeSboxes,i,j) + generateOneKey(1,activeSboxes,i,j) + generateOneKey(2,activeSboxes,i,j) + generateOneKey(3,activeSboxes,i,j)] for i in range(2**6) for j in range(2**6)]
+    if cnt==1:
+        keys = [[generateKeys(0,activeSboxes,i) + generateKeys(1,activeSboxes,i) + generateKeys(2,activeSboxes,i) + generateKeys(3,activeSboxes,i)] for i in range(2**6)]
+    return keys
+
+
 # s = [5, 9, 7, 14, 0, 3, 2, 1, 10, 4, 13, 8, 11, 12, 6, 15]
 # s = [10, 5, 0, 13, 14, 11, 4, 6, 9, 2, 12, 3, 7, 1, 8, 15]
 s = GenerateCipher()
@@ -363,27 +399,24 @@ cv = CipherVisualizer(s)
 cv.load()
 cv.visualize()
 cv.startInteractivrMode()
-
 linearEquation = cv.getLinearEquation()
-
-#toto zatial manualne
-keys = [dec2bin(i) + [0]*12 + dec2bin(j) for i in range(2**6) for j in range(2**6)]
+keys = generateAllKeys(cv.getActiveSboxes())
 keyDict = [0 for i in range(2**12)]
 
 # data = loadData()
-# for i,k in enumerate(keys):    
+# for i,k in enumerate(keys):
 #     for d in data:
 #         if xorbitsLE(d[0],partialDecrypt(s,k,d[0]),linearEquation):
 #             keyDict[i]+=1
 #     keyDict[i]/=len(data)
 
-f = open('keys.dat','rb')
+# f = open('keys.dat','rb')
 # pickle.dump(keyDict,f)
-keyDict = pickle.load(f)
-f.close()
+# keyDict = pickle.load(f)
+# f.close()
 
 
-keyDictSort = [(abs(k-0.5), i) for i,k in enumerate(keyDict)]
-keyDictSort.sort(reverse=True)
+# keyDictSort = [(abs(k-0.5), i) for i,k in enumerate(keyDict)]
+# keyDictSort.sort(reverse=True)
 
-print(keyDictSort[0:20])
+# print(keyDictSort[0:20])
