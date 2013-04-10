@@ -111,7 +111,7 @@ def Decrypt(structure, keys, ciphertext):
     # Round 1
     val = xor(ciphertext, keys[3])
     val = subs(Sinv, val)
-    print('val',val)
+    # print('val',val)
     val = xor(val, keys[2])
     # Round 2
     val = perm(P2inv, val)
@@ -227,13 +227,37 @@ class CipherVisualizer:
         for i,l in enumerate(self.sboxes):            
             self._printBits(i,0,l[0][:])
             if i<self.levels-1:
-                print('    ',' _       _______  '*4)
-                print('    ','|_ S-box:_______| '*4)
+                print('    ',' _       _     _  '*4)                
+                s = ""
+                for j in range(4):
+                    vstup = bin2dec(self.sboxes[i][0][j*6:(1+j)*6])
+                    vystup = bin2dec(self.sboxes[i][1][j*6:(1+j)*6])
+                    s+='|_ S-box:_{0:.3f}_| '.format(biasTable[vstup][vystup])
+                print('    ',s)
                 self._printBits(i,1,l[1][:])
             if i<self.levels-2:                
                 print('    ',' _______________________________      ________________________________  ')
                 print('    ','|_______________________________ Perm ________________________________| ')
         print('l  :', *[repr(i).rjust(2) for i in range(self.bits)])
+
+    def getLinearEquation(self):
+        vstup = [i for i,j in enumerate(self.sboxes[0][0]) if j]
+        vystup = [i for i,j in enumerate(self.sboxes[self.levels-2][0]) if j]
+        return (vstup, vystup)
+
+    def load(self, value = None):
+        if type(value) is not str:
+            value = 'sbox.dat'
+        f = open(value,'rb')
+        self.sboxes = pickle.load(f)
+        f.close()
+        
+    def save(self, value):
+        if type(value) is not str:
+            value = 'sbox.dat'
+        f = open(value,'wb')
+        pickle.dump(self.sboxes,f)
+        f.close()
 
     def startInteractivrMode(self):
         level = 0
@@ -277,7 +301,12 @@ class CipherVisualizer:
             if command=='r' or command=='reset':
                 self.__init__(self.structure, self.bits)
                 self.visualize()
-            
+
+            if command=='save':
+                self.save(value)
+
+            if command=='load':
+                self.load(value)
 
 def loadData():
     f = open('h2-data.txt')
@@ -295,6 +324,23 @@ def xorbits(ot,ct):
     for i in ct:
         xor^=i
     return xor
+
+def xorbitsLE(ot,ct,le):
+    xor = 0
+    for i in le[0]:
+        xor^=ot[i]
+    for i in le[1]:
+        xor^=ct[i]
+    return xor
+
+def partialDecrypt(structure, key, ciphertext):
+    Sinv = inv(structure[0])
+    # P1inv = inv(structure[1])
+    # P2inv = inv(structure[2])
+    # Round 1
+    val = xor(ciphertext, key)
+    val = subs(Sinv, val)
+    return val
 
 # s = [5, 9, 7, 14, 0, 3, 2, 1, 10, 4, 13, 8, 11, 12, 6, 15]
 # s = [10, 5, 0, 13, 14, 11, 4, 6, 9, 2, 12, 3, 7, 1, 8, 15]
@@ -314,14 +360,30 @@ for i in range(len(linearTable)):
             print(i,j,dec2bin(i), dec2bin(j), linearTable[i][j], biasTable[i][j])
 
 cv = CipherVisualizer(s)
+cv.load()
 cv.visualize()
 cv.startInteractivrMode()
 
+linearEquation = cv.getLinearEquation()
+
+#toto zatial manualne
+keys = [dec2bin(i) + [0]*12 + dec2bin(j) for i in range(2**6) for j in range(2**6)]
+keyDict = [0 for i in range(2**12)]
 
 # data = loadData()
-# s = 0
-# for d in data:
-#     if xorbits(*d):
-#         s+=1
+# for i,k in enumerate(keys):    
+#     for d in data:
+#         if xorbitsLE(d[0],partialDecrypt(s,k,d[0]),linearEquation):
+#             keyDict[i]+=1
+#     keyDict[i]/=len(data)
 
-# print(s/len(data))
+f = open('keys.dat','rb')
+# pickle.dump(keyDict,f)
+keyDict = pickle.load(f)
+f.close()
+
+
+keyDictSort = [(abs(k-0.5), i) for i,k in enumerate(keyDict)]
+keyDictSort.sort(reverse=True)
+
+print(keyDictSort[0:20])
