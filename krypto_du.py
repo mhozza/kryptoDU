@@ -166,17 +166,20 @@ def computeLinearAproximationTable(S, pocetBitov = 6):
     return [[computeLATCell(j, i, vectors, S) for i in r] for j in r]
 
 class CipherVisualizer:
-    def __init__(self, structure, linearTable, biasTable, bits = 24):
+    def __init__(self, structure, linearTable, biasTable, sboxes=None, bits = 24):
         self.levels = 4
         self.sboxcnt = 4
         self.bits = bits
         self.structure = structure
         self.biasTable = biasTable
         self.linearTable = linearTable
-        self.sboxes = [[[0 for i in range(self.bits)],[0 for i in range(self.bits)]] for k in range(self.levels-1)]
+        if not sboxes:
+            self.sboxes = [[[0 for i in range(self.bits)],[0 for i in range(self.bits)]] for k in range(self.levels-1)]
+        else:
+            self.sboxes = sboxes        
 
     def _reset(self):
-        self.__init__(self.structure, self.linearTable, self.biasTable, self.bits)
+        self.__init__(self.structure, self.linearTable, self.biasTable, None, self.bits)
 
     def _getBestOutput(self, inBits):
         inVal = bin2dec(inBits)
@@ -477,55 +480,75 @@ def generateDecryptedData(key, fname = "data2.txt"):
 
 
 s = GenerateCipher()
-def linearKryptoAnalysys(s, interactive = True, decrypt = True):
+def linearKryptoAnalysys(s, cv, interactive = True, decrypt = True):
     # s = [5, 9, 7, 14, 0, 3, 2, 1, 10, 4, 13, 8, 11, 12, 6, 15]
     # s = [10, 5, 0, 13, 14, 11, 4, 6, 9, 2, 12, 3, 7, 1, 8, 15]
     linearTable, biasTable = getLinearAproximationTable()
-    cv = CipherVisualizer(s, linearTable, biasTable)
-    cv.load()
-    cv.visualize()
     if interactive:
+        cv.visualize()
         cv.startInteractivrMode()
 
     if decrypt:
         linearEquation = cv.getLinearEquation()
-        print('Generating keys...')
+        sys.stderr.write('Generating keys...\n')
         activeSboxes = cv.getActiveSboxes()
         keys = generateAllKeys(activeSboxes)
-        print('Generated {} keys'.format(len(keys)))
+        sys.stderr.write('Generated {} keys\n'.format(len(keys)))
         keyDict = [0.0 for i in range(2**(6*sum(activeSboxes)))]
 
-        print('Loading data...')
+        sys.stderr.write('Loading data...\n')
         data = loadData()
-        print('Decrypting...')
+        sys.stderr.write('Decrypting...\n')
         for i,k in enumerate(keys):
             for d in data:
                 if xorbitsLE(d[0],partialDecrypt(s,k,d[1]),linearEquation):
                     keyDict[i]+=1
             keyDict[i]/=len(data)
             if  i % 20==0:
-                print('%(index)d of %(count)d = %(percent).3f%%' % {'index':i, 'count':len(keys), 'percent':(i*100.0)/len(keys)})
+                sys.stderr.write('%(index)d of %(count)d = %(percent).3f%%\n' % {'index':i, 'count':len(keys), 'percent':(i*100.0)/len(keys)})
 
-        print('Saving keys...')
+        sys.stderr.write('Saving keys...\n')
         f = open('keys.dat','wb')
         pickle.dump(keyDict,f,2)
         # keyDict = pickle.load(f)
         f.close()
 
-        print('Done.')
+        sys.stderr.write('Done.\n')
 
         keyDictSort = [(abs(k-0.5), i) for i,k in enumerate(keyDict)]
         keyDictSort.sort(reverse=True)
 
-        for k,i in keyDictSort[0:20]:
+        print('Top keys:')
+        for k,i in keyDictSort[0:5]:
             print('{0:.5f}'.format(k), keys[i], i)
 
 
 linearTable, biasTable = getLinearAproximationTable()
-cv = CipherVisualizer(s, linearTable, biasTable)
 f = open('lincomb.dat','rb')
 linCombs = pickle.load(f)
 f.close()
-# for i in linCombs[0:50]:
-#     print(i)
-# linearKryptoAnalysys(s, decrypt=True)
+
+usedLC = list()
+keyParts = [0]*4
+index = 0
+keys = []
+while cmp(keyParts,[1]*4):
+    c = linCombs[index]    
+    cv = CipherVisualizer(s, linearTable, biasTable, c[1])
+    active = cv.getActiveSboxes()
+    newkey = False
+    for i,j in enumerate(active):
+        if j and not keyParts[i]:
+            newkey = True
+            keyParts[i] = 1
+    
+    if newkey:
+        print('-'*40)
+        print('New Key Part:')
+        print('bias:',c[0])
+        print('parts:',active)
+        print('Breaking...')
+        linearKryptoAnalysys(s, cv, interactive=False, decrypt=True)
+
+    index+=1
+
