@@ -2,6 +2,8 @@
 import math
 import sys
 import pickle
+import operator
+
 def getReversedList(l):
     c = l[:]
     c.reverse()
@@ -164,13 +166,51 @@ def computeLinearAproximationTable(S, pocetBitov = 6):
     return [[computeLATCell(j, i, vectors, S) for i in r] for j in r]
 
 class CipherVisualizer:
-    def __init__(self, structure, biasTable, bits = 24):
+    def __init__(self, structure, linearTable, biasTable, bits = 24):
         self.levels = 4
         self.sboxcnt = 4
         self.bits = bits
         self.structure = structure
         self.biasTable = biasTable
+        self.linearTable = linearTable
         self.sboxes = [[[0 for i in range(self.bits)],[0 for i in range(self.bits)]] for k in range(self.levels-1)]
+
+    def _reset(self):
+        self.__init__(self.structure, self.linearTable, self.biasTable, self.bits)
+
+    def _getBestOutput(self, inBits):
+        inVal = bin2dec(inBits)
+        row = [abs(i) for i in self.linearTable[inVal]]
+        max_index = max(enumerate(row), key=operator.itemgetter(1))[0]
+        return dec2bin(max_index)
+
+
+
+    def getTopLinearCombinations(self):
+        topSboxes = [(i,j) for i in range(len(self.linearTable)) for j in range(len(self.linearTable[i])) if abs(self.linearTable[i][j])>=12]
+
+        sboxCombinations = [(i,j)for i in range(self.sboxcnt) for j in range(self.sboxcnt)]
+        sboxTuple = [(i,j) for i in topSboxes for j in topSboxes]
+
+        lcombs = list()
+        for c,i in enumerate(sboxTuple):
+            for j in sboxCombinations:
+                self._reset()
+                self.setSBox(0, 0, j[0], dec2bin(i[0][0]))
+                self.setSBox(1, 0, j[0], dec2bin(i[0][1]))
+                self.setSBox(0, 0, j[1], dec2bin(i[1][0]))
+                self.setSBox(1, 0, j[1], dec2bin(i[1][1]))
+                for ind,k in enumerate(self.getActiveSboxes(1)):
+                    if k:
+                        self.setSBox(1,1,ind,self._getBestOutput(self.sboxes[1][0][ind*6:(ind+1)*6]))
+                t = self.sboxes[:]
+                lc = (abs(self._computeBias()),t)
+                lcombs.append(lc)
+            print('%(index)d of %(count)d = %(percent).3f%%' % {'index':c, 'count':len(sboxTuple), 'percent':(c*100.0)/len(sboxTuple)})
+
+        lcombs.sort(reverse=True)
+        lcombs2 = [i for j,i in enumerate(lcombs) if j==0 or cmp(i, lcombs[j-1])!=0]
+        return lcombs2
 
     def subs(self, level, out):
         return self.sboxes[level][out]
@@ -228,12 +268,26 @@ class CipherVisualizer:
     def _printBits(self, i, j, bits, colors=True):
         color = ('\033[0;37m', '\033[1;31m')
         ls = self._list2String([color[b]+repr(b).rjust(2)+color[0] for b in bits])
-        print(str(i)+'.'+str(j)+':'+ls)        
+        print(str(i)+'.'+str(j)+':'+ls)
+
+    def _computeBias(self):
+        globalBias = 2**(self.levels-2)
+        for i,l in enumerate(self.sboxes):
+            if i<self.levels-1:
+                sboxBias = 2**(self.sboxcnt-1)
+                for j in range(4):
+                    vstup = bin2dec(self.sboxes[i][0][j*6:(1+j)*6])
+                    vystup = bin2dec(self.sboxes[i][1][j*6:(1+j)*6])
+                    sboxBias *=self.biasTable[vstup][vystup]
+            if i<self.levels-2:
+                globalBias*=sboxBias
+        return globalBias
+
 
     def visualize(self):
         ls = self._list2String([repr(i).rjust(2) for i in range(self.bits)])
         print('l  :' + ls)
-        globalBias = 2
+        globalBias = 2**(self.levels-2)
         for i,l in enumerate(self.sboxes):
             self._printBits(i,0,l[0][:])
             if i<self.levels-1:
@@ -247,7 +301,7 @@ class CipherVisualizer:
                     s+='|_ S-box:_{0:.3f}_| '.format(self.biasTable[vstup][vystup])
                 s+='  Bias: %(bias) .4f' % {'bias':sboxBias}
                 print('    ' + s)
-                self._printBits(i,1,l[1][:])                
+                self._printBits(i,1,l[1][:])
             if i<self.levels-2:
                 print('     _______________________________      ________________________________  ')
                 print('    |_______________________________ Perm ________________________________| ')
@@ -294,12 +348,12 @@ class CipherVisualizer:
                 break
 
             if command=='l' or command=='level':
-                if value != None and 0 <= int(value) < self.levels:
+                if value != None and 0 <= int(value) < self.levels-1:
                     level = int(value)
                 print('Current level:', level)
 
             if command=='s' or command=='sbox':
-                if value != None and 0 <= int(value) < 4:
+                if value != None and 0 <= int(value) < self.sboxcnt:
                     sbox = int(value)
                 print('Current s-box:', sbox)
 
@@ -315,7 +369,7 @@ class CipherVisualizer:
                 self.visualize()
 
             if command=='r' or command=='reset':
-                self.__init__(self.structure, self.biasTable, self.bits)
+                self._reset()
                 self.visualize()
 
             if command=='save':
@@ -323,6 +377,7 @@ class CipherVisualizer:
 
             if command=='load':
                 self.load(value)
+
 
     def _isZero(self, bits):
         for i in bits:
@@ -396,74 +451,81 @@ def generateAllKeys(activeSboxes):
 def getLinearAproximationTable():
     f = open('lineartable.dat','rb')
     linearTable = pickle.load(f)
+    # computeLinearAproximationTable(s[0],6)
     f.close()
     f = open('lineartable.dat','wb')
     pickle.dump(linearTable,f,2)
-    # computeLinearAproximationTable(s[0],6)
     f.close()
     f = open('biasTable.dat','rb')
     biasTable = pickle.load(f)
+    # = [[i/(2*linearTable[0][0]) for i in j] for j in linearTable]
     f.close()
     f = open('biasTable.dat','wb')
     pickle.dump(biasTable,f,2)
-    # = [[i/(2*linearTable[0][0]) for i in j] for j in linearTable]
     f.close()
 
-    # for i in range(len(linearTable)):
-    #     for j in range(len(linearTable[i])):
-    #         if abs(linearTable[i][j])>=12:
-    #             print(i,j,dec2bin(i), dec2bin(j), linearTable[i][j], biasTable[i][j])
+
+                # print(i,j,dec2bin(i), dec2bin(j), linearTable[i][j], biasTable[i][j])
     return (linearTable, biasTable)
 
 def generateDecryptedData(key, fname = "data2.txt"):
     data = loadData()
     f = open(fname,'w')
     print('Decrypting...')
-    for d in data:        
+    for d in data:
         f.write('%(d1)s %(d2)s\n' % {'d1':d[0], 'd2':partialDecrypt(s,key,d[1])})
 
-def linearKryptoAnalysys(interactive = True):
+
+s = GenerateCipher()
+def linearKryptoAnalysys(s, interactive = True, decrypt = True):
     # s = [5, 9, 7, 14, 0, 3, 2, 1, 10, 4, 13, 8, 11, 12, 6, 15]
     # s = [10, 5, 0, 13, 14, 11, 4, 6, 9, 2, 12, 3, 7, 1, 8, 15]
-    s = GenerateCipher()
     linearTable, biasTable = getLinearAproximationTable()
-    cv = CipherVisualizer(s, biasTable)
+    cv = CipherVisualizer(s, linearTable, biasTable)
     cv.load()
     cv.visualize()
     if interactive:
         cv.startInteractivrMode()
-    linearEquation = cv.getLinearEquation()
 
-    print('Generating keys...')
-    activeSboxes = cv.getActiveSboxes()
-    keys = generateAllKeys(activeSboxes)
-    print('Generated {} keys'.format(len(keys)))
-    # print('Sample key:',keys[0:5])
-    keyDict = [0.0 for i in range(2**(6*sum(activeSboxes)))]
+    if decrypt:
+        linearEquation = cv.getLinearEquation()
+        print('Generating keys...')
+        activeSboxes = cv.getActiveSboxes()
+        keys = generateAllKeys(activeSboxes)
+        print('Generated {} keys'.format(len(keys)))
+        keyDict = [0.0 for i in range(2**(6*sum(activeSboxes)))]
 
-    print('Loading data...')
-    data = loadData()
-    print('Decrypting...')
-    for i,k in enumerate(keys):
-        for d in data:
-            if xorbitsLE(d[0],partialDecrypt(s,k,d[1]),linearEquation):
-                keyDict[i]+=1
-        keyDict[i]/=len(data)
-        if  i % 20==0:
-            print('%(index)d of %(count)d = %(percent).3f%%' % {'index':i, 'count':len(keys), 'percent':(i*100.0)/len(keys)})
+        print('Loading data...')
+        data = loadData()
+        print('Decrypting...')
+        for i,k in enumerate(keys):
+            for d in data:
+                if xorbitsLE(d[0],partialDecrypt(s,k,d[1]),linearEquation):
+                    keyDict[i]+=1
+            keyDict[i]/=len(data)
+            if  i % 20==0:
+                print('%(index)d of %(count)d = %(percent).3f%%' % {'index':i, 'count':len(keys), 'percent':(i*100.0)/len(keys)})
 
-    print('Saving keys...')
-    f = open('keys.dat','wb')
-    pickle.dump(keyDict,f,2)
-    # keyDict = pickle.load(f)
-    f.close()
+        print('Saving keys...')
+        f = open('keys.dat','wb')
+        pickle.dump(keyDict,f,2)
+        # keyDict = pickle.load(f)
+        f.close()
 
-    print('Done.')
+        print('Done.')
 
-    keyDictSort = [(abs(k-0.5), i) for i,k in enumerate(keyDict)]
-    keyDictSort.sort(reverse=True)
+        keyDictSort = [(abs(k-0.5), i) for i,k in enumerate(keyDict)]
+        keyDictSort.sort(reverse=True)
 
-    for k,i in keyDictSort[0:20]:
-        print('{0:.5f}'.format(k), keys[i], i)
-        
-linearKryptoAnalysys()
+        for k,i in keyDictSort[0:20]:
+            print('{0:.5f}'.format(k), keys[i], i)
+
+
+linearTable, biasTable = getLinearAproximationTable()
+cv = CipherVisualizer(s, linearTable, biasTable)
+f = open('lincomb.dat','rb')
+linCombs = pickle.load(f)
+f.close()
+# for i in linCombs[0:50]:
+#     print(i)
+# linearKryptoAnalysys(s, decrypt=True)
