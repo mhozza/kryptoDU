@@ -448,7 +448,7 @@ def generateAllKeys(activeSboxes):
     if cnt==2:
         keys = [generateOneKey(0,activeSboxes,i,j) + generateOneKey(1,activeSboxes,i,j) + generateOneKey(2,activeSboxes,i,j) + generateOneKey(3,activeSboxes,i,j) for i in range(2**6) for j in range(2**6)]
     if cnt==1:
-        keys = [generateKeys(0,activeSboxes,i) + generateKeys(1,activeSboxes,i) + generateKeys(2,activeSboxes,i) + generateKeys(3,activeSboxes,i) for i in range(2**6)]
+        keys = [generateOneKey(0,activeSboxes,i) + generateOneKey(1,activeSboxes,i) + generateOneKey(2,activeSboxes,i) + generateOneKey(3,activeSboxes,i) for i in range(2**6)]
     return keys
 
 def getLinearAproximationTable():
