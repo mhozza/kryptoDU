@@ -3,6 +3,7 @@ import math
 import sys
 import pickle
 import operator
+import random
 
 def getReversedList(l):
     c = l[:]
@@ -114,7 +115,6 @@ def Decrypt(structure, keys, ciphertext):
     # Round 1
     val = xor(ciphertext, keys[3])
     val = subs(Sinv, val)
-    # print('val',val)
     val = xor(val, keys[2])
     # Round 2
     val = perm(P2inv, val)
@@ -275,7 +275,7 @@ class CipherVisualizer:
         print(str(i)+'.'+str(j)+':'+ls)
 
     def _computeBias(self):
-        globalBias = 2**(self.levels-2)
+        globalBias = 2**(self.levels-3)
         for i,l in enumerate(self.sboxes):
             if i<self.levels-1:
                 sboxBias = 2**(self.sboxcnt-1)
@@ -291,7 +291,7 @@ class CipherVisualizer:
     def visualize(self):
         ls = self._list2String([repr(i).rjust(2) for i in range(self.bits)])
         print('l  :' + ls)
-        globalBias = 2**(self.levels-2)
+        globalBias = 2**(self.levels-3)
         for i,l in enumerate(self.sboxes):
             self._printBits(i,0,l[0][:])
             if i<self.levels-1:
@@ -399,8 +399,8 @@ class CipherVisualizer:
                 s.append(1)
         return s
 
-def loadData():
-    f = open('data2.txt')
+def loadData(fname='data2.txt'):
+    f = open(fname)
     data = list()
     for line in f:
         (oth,cth) = line.split()
@@ -424,13 +424,39 @@ def xorbitsLE(ot,ct,le):
         xor^=ct[i]
     return xor
 
-def partialDecrypt(structure, key, ciphertext):
+def permuteKey(structure, key):
+    P2 = structure[2]
+    return perm(P2, key)
+
+
+def partialDecrypt(structure, key, ciphertext, permutation=False):
+        # Sinv = inv(structure[0])
+        # P1inv = inv(structure[1])
+        # P2inv = inv(structure[2])
+        # # Round 1
+        # val = xor(ciphertext, keys[1])
+        # val = subs(Sinv, val)
+        # val = xor(val, keys[0])
+        # # # Round 2
+        # val = perm(P2inv, val)
+        # val = subs(Sinv, val)
+        # # val = xor(val, keys[1])
+        # # # Round 3
+        # if permutation:
+        #     val = perm(P1inv, val)
+    
     Sinv = inv(structure[0])
-    # P1inv = inv(structure[1])
-    # P2inv = inv(structure[2])
+    P1inv = inv(structure[1])
+    P2inv = inv(structure[2])
+    
     # Round 1
     val = xor(ciphertext, key)
     val = subs(Sinv, val)
+    # Round 2
+    if permutation:
+        val = perm(P1inv, val)
+    # val = xor(val, keys[2])
+
     return val
 
 def generateOneKey(index, lst, *params):
@@ -472,12 +498,13 @@ def getLinearAproximationTable():
                 # print(i,j,dec2bin(i), dec2bin(j), linearTable[i][j], biasTable[i][j])
     return (linearTable, biasTable)
 
-def generateDecryptedData(key, fname = "data2.txt"):
-    data = loadData()
+def generateDecryptedData(keys, fname = "data3.txt"):
+    # data = loadData('h2-data.txt')
+    data = loadData('data2.txt')
     f = open(fname,'w')
     print('Decrypting...')
     for d in data:
-        f.write('%(d1)s %(d2)s\n' % {'d1':bin2hex(d[0]), 'd2':bin2hex(partialDecrypt(s,key,d[1]))})
+        f.write('%(d1)s %(d2)s\n' % {'d1':bin2hex(d[0]), 'd2':bin2hex(partialDecrypt(s,keys,d[1],permutation=True))})
 
 
 s = GenerateCipher()
@@ -522,11 +549,48 @@ def linearKryptoAnalysys(s, cv, interactive = True, decrypt = True):
         print('Top keys:')
         for k,i in keyDictSort[0:5]:
             print('{0:.5f}'.format(k), keys[i], i)
+        return keyDictSort
 
+def decryptLast(structure, ri = 0):
+    Sinv = structure[0]
+    data = loadData('data3.txt')
+    for i in range(2**6):
+        for j in range(2**6):
+            k0, k1 = (dec2bin(i), dec2bin(j))
+            found = True
+            for d in data:                
+                val = xor(d[0][ri*6:(ri+1)*6], k0)
+                val = subs(Sinv, val)
+                val = xor(val, k1)
+                if val != d[1][ri*6:(ri+1)*6]:                    
+                    found = False
+                    break
+            if found:
+                return (k0,k1)
+    return None
 
-linearTable, biasTable = getLinearAproximationTable()
-cv = CipherVisualizer(s, linearTable, biasTable)
-# linearKryptoAnalysys(s, cv, interactive=True, decrypt=False)
+def partialEncrypt(structure, keys, plaintext):
+    S = structure[0]
+    P1 = structure[1]
+    P2 = structure[2]
+    # Round 1
+    val = xor(plaintext, keys[0])
+    val = subs(S, val)
+    # val = perm(P1, val)
+    # Round 2
+    val = xor(val, keys[1])    
+    return val
+
+def generateTestData(keys):    
+    data = [dec2bin(random.randrange(2**24),24) for i in range(4000)]
+    f = open('testdata.txt', 'w')
+    for d in data:
+        f.write('%(d1)s %(d2)s\n' % {'d1':bin2hex(d), 'd2':bin2hex(partialEncrypt(s,keys,d))})
+    f.close()
+
+# linearTable, biasTable = getLinearAproximationTable()
+# cv = CipherVisualizer(s, linearTable, biasTable)
+# linearKryptoAnalysys(s, cv, interactive=True, decrypt=True)
 
 # f = open('lincomb.dat','wb')
 # lc = cv.getTopLinearCombinations()
@@ -535,33 +599,54 @@ cv = CipherVisualizer(s, linearTable, biasTable)
 # for i in lc[0:30]:
 #     print(i)
 
-f = open('lincomb.dat','rb')
-linCombs = pickle.load(f)
-f.close()
+# f = open('lincomb.dat','rb')
+# linCombs = pickle.load(f)
+# f.close()
 
-usedLC = list()
-keyParts = [0]*4
-index = 0
-keys = []
-while cmp(keyParts,[1]*4):
-    c = linCombs[index]    
-    cv = CipherVisualizer(s, linearTable, biasTable, c[1])
-    active = cv.getActiveSboxes()
-    newkey = False
-    for i,j in enumerate(active):
-        if j and not keyParts[i]:
-            newkey = True
-            keyParts[i] = 1
-    
-    if newkey:
-        print('-'*40)
-        print('New Key Part:')
-        print('bias:',c[0])
-        print('parts:',active)
-        print('Breaking...')
-        linearKryptoAnalysys(s, cv, interactive=False, decrypt=True)
+# usedLC = list()
+# keyParts = [1,1,0,1]
+# index = 11
+# keys = []
+# while cmp(keyParts,[1]*4):
+# # for index in range(12,20):
 
-    index+=1
+#     c = linCombs[index]    
+#     cv = CipherVisualizer(s, linearTable, biasTable, c[1])
+#     active = cv.getActiveSboxes()
+#     newkey = False
+#     for i,j in enumerate(active):
+#         if j and not keyParts[i]:
+#             newkey = True            
+#             # keyParts[i] = 1
+
+#     if newkey:
+#         print('-'*40)
+#         print('New Key Part:')
+#         print('index:',index)
+#         print('bias:',c[0])
+#         print('parts:',active)
+#         print('Breaking...')
+#         keys = linearKryptoAnalysys(s, cv, interactive=False, decrypt=True)
+#         if keys[0][0]>0.4:
+#             keyParts[2] = 1
+
+#     index+=1
 
 # k = [1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0]
-# generateDecryptedData(k)
+# generateTestData(GenerateKeys())
+# k2 = permuteKey(s, [0, 1, 0, 0, 1, 0,
+#                     1, 0, 0, 1, 0, 0,
+#                     0, 0, 0, 1, 1, 0,
+#                     1, 1, 0, 1, 1, 1])
+
+# for k0 in range(2**6):
+#     for k1 in range(2**6):
+#         k2 = dec2bin(k0) + [1, 0, 0, 1, 0, 0] +dec2bin(k1) +[1, 1, 0, 1, 0, 1]
+#         generateDecryptedData(k2)
+#         keys = list()
+#         for i in range(4):
+#             keys.append(decryptLast(s,i))    
+#         if keys != [None]*4:
+#             print k2
+#             print keys
+#             break
