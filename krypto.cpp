@@ -106,7 +106,7 @@ int main()
 					cout << "key3:" << key3 << endl;
 					cout << "key2:" << key2 << endl;
 					cout << "key1:" << key1 << endl;
-					exit(0);					
+					return 0;				
 				}
 			}			
 		}
