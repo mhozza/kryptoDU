@@ -578,7 +578,7 @@ def do_test(debug = False):
         if OT!=OT2: return False
     return True
 
-# s = GenerateCipher()
+s = GenerateCipher()
 # k1 = [0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0]
 # k2 = perm(s[1],[1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0])
 # k3 = perm(s[2],[1, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1])
@@ -598,3 +598,11 @@ def do_test(debug = False):
 #     print keys
 
 # print(do_test(True))
+
+
+
+linearTable, biasTable = getLinearAproximationTable()
+cv = CipherVisualizer(s, linearTable, biasTable, levels=4)
+linCombs = cv.getLinearCombinations()
+cv.sboxes = linCombs[1][1]
+linearKryptoAnalysys(s, cv, interactive = True, decrypt = False)
