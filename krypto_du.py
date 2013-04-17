@@ -62,7 +62,8 @@ def bin2dec(b):
 
 
 def GenerateKeys():
-    return [hex2bin("fed8d4") , hex2bin("5cea3d") , hex2bin("ebd76c") , hex2bin("c51cbc")]
+    # return [hex2bin("fed8d4") , hex2bin("5cea3d") , hex2bin("ebd76c") , hex2bin("c51cbc")]
+    return [hex2bin('41da24'), hex2bin('5d61b9'), hex2bin('7a64aa'), hex2bin('9494a5')] 
 
 def xor(a,b):
     if len(a) != len(b):
@@ -128,23 +129,6 @@ def Decrypt(structure, keys, ciphertext):
 
 
 
-def do_test(debug = False):
-    struct = GenerateCipher()
-    keys = GenerateKeys()
-    OT = hex2bin("bd4583")
-    if debug: print('OT:', OT)
-    ST = Encrypt(struct, keys, OT)
-    if debug:
-        print('ST:', ST)
-        print('TT:', hex2bin('88683c'))
-        print('STstr:', bin2hex(ST))
-        print('TTstr', '88683c')
-    OT2 = Decrypt(struct, keys, ST)
-    if debug: print('OT2:', OT2)
-    if debug: print('Korektne desifrovane:', OT==OT2)
-    return OT==OT2
-
-# print(do_test(True))
 
 def scalar(v1,v2):
     sum = 0
@@ -620,12 +604,13 @@ def getLastKey(fname = 'h2-data.txt', levels = 4):
         index+=1
 
 
-s = GenerateCipher()
-k1 = [0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0]
-k2 = [1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0]
-k3 = [1, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1]
-k4 = [1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1]
+# s = GenerateCipher()
+# k1 = [0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0]
+# k2 = perm(s[1],[1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0])
+# k3 = perm(s[2],[1, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1])
+# k4 = [1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1]
 
+# print(bin2hex(k1), bin2hex(k2), bin2hex(k3), bin2hex(k4))
 # generateDecryptedData(k3, 'data2.txt', "data3.txt", levels = 3)
 # key3 = [1,1,0,0,0,1, 0,1,0,0,0,1, 1,1,0,0,1,0, 1,1,1,1,0,0]
 # print(bin2dec(key3), bin2dec(perm(inv(s[1]), key3)), perm(inv(s[1]), key3), inv(s[1]))
@@ -636,8 +621,32 @@ k4 = [1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1]
 
 # generateTestData(s, GenerateKeys(), 'testdata_partial.txt')
 
-keys = list()
-for i in range(4):
-    keys.append(decryptLast(s,i))    
-if keys != [None]*4:    
-    print keys
+# keys = list()
+# for i in range(4):
+#     keys.append(decryptLast(s,i))    
+# if keys != [None]*4:    
+#     print keys
+
+
+#('41da24', '5d61b9', '7a64aa', '9494a5')
+def do_test(debug = False):
+    data = loadData()
+    struct = GenerateCipher()
+    keys = GenerateKeys()
+    for d in data:
+        OT = d[0]
+        if debug: print('OT:', OT)
+        ST = Encrypt(struct, keys, OT)
+        TT = d[1]
+        if debug:
+            print('ST:', ST)
+            print('TT:', TT)
+            print('STstr:', bin2hex(ST))
+            print('TTstr', bin2hex(TT))
+        OT2 = Decrypt(struct, keys, ST)
+        if debug: print('OT2:', OT2)
+        if debug: print('Korektne desifrovane:', OT==OT2)
+        if OT!=OT2: return False
+    return True
+
+print(do_test(True))
