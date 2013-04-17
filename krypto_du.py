@@ -429,21 +429,6 @@ def permuteKey(structure, key):
 
 
 def partialDecrypt(structure, key, ciphertext, permutation=False, levels = 4):
-    # Sinv = inv(structure[0])
-    # P1inv = inv(structure[1])
-    # P2inv = inv(structure[2])
-    # # Round 1
-    # val = xor(ciphertext, keys[1])
-    # val = subs(Sinv, val)
-    # val = xor(val, keys[0])
-    # # # Round 2
-    # val = perm(P2inv, val)
-    # val = subs(Sinv, val)
-    # # val = xor(val, keys[1])
-    # # # Round 3
-    # if permutation:
-    #     val = perm(P1inv, val)
-
     Sinv = inv(structure[0])
     if levels==4:
         Pinv = inv(structure[2])
@@ -495,8 +480,7 @@ def getLinearAproximationTable():
     pickle.dump(biasTable,f,2)
     f.close()
 
-
-                # print(i,j,dec2bin(i), dec2bin(j), linearTable[i][j], biasTable[i][j])
+    # print(i,j,dec2bin(i), dec2bin(j), linearTable[i][j], biasTable[i][j])
     return (linearTable, biasTable)
 
 def generateDecryptedData(keys, fname_in = 'h2-data.txt', fname_out = "data2.txt", levels=4):
@@ -528,7 +512,7 @@ def linearKryptoAnalysys(s, cv, interactive = True, decrypt = True, fname = "h2-
         sys.stderr.write('Decrypting...\n')
         for i,k in enumerate(keys):
             for d in data:
-                if xorbitsLE(d[0],partialDecrypt(s,k,d[1], cv.levels),linearEquation):
+                if xorbitsLE(d[0],partialDecrypt(s,k,d[1], levels=cv.levels),linearEquation):
                     keyDict[i]+=1
             keyDict[i]/=len(data)
             if  i % 20==0:
@@ -598,10 +582,10 @@ def getLastKey(fname = 'h2-data.txt', levels = 4):
     # linearKryptoAnalysys(s, cv, interactive=True, decrypt=True)
 
     # f = open('lincomb.dat','wb')
-    # lc = cv.getTopLinearCombinations()
-    # pickle.dump(lc,f,2)
+    # linCombs = cv.getTopLinearCombinations()
+    # pickle.dump(linCombs,f,2)
     # f.close()
-    # for i in lc[0:30]:
+    # for i in linCombs[0:30]:
     #     print(i)
 
     f = open('lincomb.dat','rb')
@@ -612,15 +596,15 @@ def getLastKey(fname = 'h2-data.txt', levels = 4):
     keyParts = [0,0,0,0]
     index = 1
     keys = []
-    # while keyParts != [1]*4:
-    for index in range(1,30):
+    while keyParts != [1]*4:
+    # for index in range(1,30):
         c = linCombs[index]    
         cv = CipherVisualizer(s, linearTable, biasTable, c[1], levels=levels)
         active = cv.getActiveSboxes(cv.levels-2)
         newkey = False
         if sum(active)<=2:
             for i,j in enumerate(active):
-                # if j and not keyParts[i]:
+                if j and not keyParts[i]:
                     newkey = True            
                     keyParts[i] = 1
 
@@ -637,28 +621,23 @@ def getLastKey(fname = 'h2-data.txt', levels = 4):
 
 
 s = GenerateCipher()
-key3 = [1,1,0,0,0,1, 0,1,0,0,0,1, 1,1,0,0,1,0, 1,1,1,1,0,0]
-print(bin2dec(key3), bin2dec(perm(inv(s[1]), key3)), perm(inv(s[1]), key3), inv(s[1]))
-# generateDecryptedData(key3, 'testdata.txt', "testdata2.txt")
+k1 = [0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0]
+k2 = [1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0]
+k3 = [1, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1]
+k4 = [1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1]
+
+# generateDecryptedData(k3, 'data2.txt', "data3.txt", levels = 3)
+# key3 = [1,1,0,0,0,1, 0,1,0,0,0,1, 1,1,0,0,1,0, 1,1,1,1,0,0]
+# print(bin2dec(key3), bin2dec(perm(inv(s[1]), key3)), perm(inv(s[1]), key3), inv(s[1]))
 
 # getLastKey("data2.txt", 3)
+# getLastKey("h2-data.txt", 4)
+# getLastKey("testdata.txt", 4)
 
 # generateTestData(s, GenerateKeys(), 'testdata_partial.txt')
 
-# k = [1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0]
-# k2 = permuteKey(s, [0, 1, 0, 0, 1, 0,
-#                     1, 0, 0, 1, 0, 0,
-#                     1, 0, 0, 0, 1, 0,
-#                     1, 1, 0, 1, 0, 1])
-
-# for k0 in range(2**6):
-#     # for k1 in range(2**6):
-#         k2 = [0, 1, 0, 0, 1, 0] + [1, 0, 0, 1, 0, 0] +dec2bin(k0) +[1, 1, 0, 1, 1, 1]
-#         generateDecryptedData(k2)
-#         keys = list()
-#         for i in range(4):
-#             keys.append(decryptLast(s,i))    
-#         if keys != [None]*4:
-#             print k2
-#             print keys
-#             # break
+keys = list()
+for i in range(4):
+    keys.append(decryptLast(s,i))    
+if keys != [None]*4:    
+    print keys
